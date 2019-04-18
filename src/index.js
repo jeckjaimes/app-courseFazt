@@ -1,11 +1,18 @@
 // Requirements 
-const express = require('express');
-const morgan = require('morgan');
-const exphbs = require('express-handlebars');
-const path = require('path');
+const express = require('express'); // Servidor
+const morgan = require('morgan'); // Escribe por la terminal los estados del sistema, tipo GET y POST
+const exphbs = require('express-handlebars'); // Motor de plantillas
+const path = require('path'); // Unión de directorios
+const flash = require('connect-flash'); // Para mostrar mensajes de distintos tipos
+const session = require('express-session'); // Para crear sesiones
+const MySQLStore = require('express-mysql-session'); // Para guardar la sesión en la base de datos en vez del servidor
+const passport = require('passport');
+
+const { database } = require('./keys');
+
 // Initializations
 const app = express(); // Aplicación
-
+require('./lib/passport');
 
 // Settings 
 app.set('port', process.env.port || 3000); // Definicion del puerto, si existe un puerto en el sistema o se escoge el 3000
@@ -20,13 +27,25 @@ app.engine('.hbs', exphbs({ // Configuración del motor de plantillas, para trab
 app.set('view engine', '.hbs'); // Usa el motor de plantillas
 
 // Middlewares
+app.use(session({
+    secret: 'mysession',
+    resave: false,
+    saveUninitialized: false,
+    store: new MySQLStore(database) // Sesión en la base de datos
+}));
+app.use(flash()); // Funcionalidad de enviar mensajes activa
 app.use(morgan('dev')); // Muestra peticiones que llegan al servidor
-app.use(express.urlencoded({extended: false})); // Para aceptar los datos de los formularios que envien los usuarios, solo datos sencillos
+app.use(express.urlencoded({ extended: false })); // Para aceptar los datos de los formularios que envien los usuarios, solo datos sencillos
 app.use(express.json()); // Para poder enviar y recibir jsons
+app.use(passport.initialize()); // Inicializamos passport...
+app.use(passport.session());
+
 
 // Global Variables
 app.use((req, res, next) => {
-    
+    app.locals.success = req.flash('success');
+    app.locals.message = req.flash('message');
+    app.locals.user = req.user;
     next();
 })
 
